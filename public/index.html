@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mr Doso Oficial Web</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="wave"></div>
+    
+    <div class="container">
+        <header>
+            <h1>Bem-vindo ao Meu Website</h1>
+            <p>Aqui você encontra acesso rápido ao meu conteúdo e muito mais.</p>
+        </header>
+
+        <section class="about-channel">
+            <h2><i class="fas fa-info-circle"></i> Sobre Meu Canal no YouTube</h2>
+            <p>
+No meu canal você encontra tutoriais de internet e muito mais.
+            </p>
+        </section>
+
+        <section class="links-section">
+            <h2><i class="fas fa-link"></i> Meus Links</h2>
+            <ul>
+                <li>
+                    <a href="https://youtube.com/@cardosofernando-x7v?si=WjzDNdbs2dvmJ0AV" target="_blank" class="button youtube">
+                        <i class="fab fa-youtube"></i>
+                        <span>Meu Canal no YouTube</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="https://chat.whatsapp.com/LS5MVpEUOczI8OUkplXnA2?mode=ac_t" target="_blank" class="button whatsapp">
+                        <i class="fab fa-whatsapp"></i>
+                        <span>Meu Grupo no WhatsApp</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="mailto:doso02022005@gmail.com" class="button contact">
+                        <i class="fas fa-envelope"></i>
+                        <span>Entre em Contato via e-mail</span>
+                    </a>
+                </li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>© 2025 Mr Doso Web. Todos os direitos reservados.</p>
+        </footer>
+    </div>
+
+    <div id="customAlertOverlay" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <h3 id="customAlertTitle"></h3>
+            <p id="customAlertMessage"></p>
+            <button id="customAlertCloseBtn" class="close-btn">OK</button>
+        </div>
+    </div>
+    
+    <script src="/script.js"></script>
+    <script>
+       
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('section');
+            
+            sections.forEach((section, index) => {
+             
+                section.style.animationDelay = `${index * 0.1}s`;
+            });
+            
+            
+            const wave = document.querySelector('.wave');
+            if (wave) { 
+                let scrollPosition = 0;
+                function moveWave() {
+                    scrollPosition += 0.5;
+                    wave.style.backgroundPositionX = -scrollPosition + 'px';
+                    requestAnimationFrame(moveWave);
+                }
+                moveWave();
+            }
+        });
+    </script>
+</body>
+</html>
