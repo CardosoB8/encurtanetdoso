@@ -1,4 +1,4 @@
-/* Ai- Mr Doso */
+/* public/style.css - Versão Final Premium */
 
 /* Definição de variáveis CSS para cores e tamanhos */
 :root {
@@ -8,10 +8,10 @@
     --dark: #2d2b55;
     --light: #f8f9ff;
     --text: #33334d;
-    --shadow: rgba(0, 0, 0, 0.1);
+    --error: #e74c3c;
 }
 
-/* Reset de margin e padding e box-sizing */
+/* Reset de margin e padding */
 * {
     margin: 0;
     padding: 0;
@@ -26,22 +26,20 @@ body {
     min-height: 100vh;
     padding: 20px;
     display: flex;
+    flex-direction: column; /* Alterado para permitir footer fluido */
     justify-content: center;
     align-items: center;
     position: relative;
     overflow-x: hidden;
-    overflow-y: auto; /* Permitir rolagem vertical */
-
-    /* Desabilita a seleção de texto */
-    -webkit-user-select: none;  /* Safari */
-    -moz-user-select: none;     /* Firefox */
-    -ms-user-select: none;      /* Internet Explorer/Edge */
-    user-select: none;          /* Standard */
-    -webkit-touch-callout: none; /* iOS Safari */
-    -webkit-tap-highlight-color: transparent; /* Remove highlight on tap for iOS */
+    
+    /* Desabilita a seleção de texto para evitar cópia fácil */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
-/* Efeito de background com círculos */
+/* Background animado com SVG */
 body::before {
     content: '';
     position: absolute;
@@ -54,7 +52,7 @@ body::before {
     z-index: -1;
 }
 
-/* Container principal com design glassmorphism (compartilhado entre index e page1) */
+/* Container principal (Glassmorphism) */
 .container {
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(10px);
@@ -67,9 +65,10 @@ body::before {
     position: relative;
     overflow: hidden;
     transition: transform 0.3s ease;
-    display: flex; /* Para organizar itens em coluna */
+    display: flex;
     flex-direction: column;
     align-items: center;
+    margin-bottom: 20px;
 }
 
 .container:hover {
@@ -77,7 +76,7 @@ body::before {
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
 }
 
-/* Borda superior colorida do container */
+/* Borda superior colorida */
 .container::before {
     content: '';
     position: absolute;
@@ -89,161 +88,15 @@ body::before {
     border-radius: 20px 20px 0 0;
 }
 
-/* Estilos específicos do index.html */
-header {
-    margin-bottom: 30px;
-    animation: fadeIn 0.8s ease-out;
-}
-
-header h1 {
+/* --- Títulos e Textos --- */
+h1, h2 {
     color: var(--dark);
-    font-size: 2.8rem;
     margin-bottom: 15px;
     font-weight: 700;
-    background: linear-gradient(90deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    position: relative;
-}
-
-header p {
-    color: var(--text);
-    font-size: 1.2rem;
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-section {
-    margin: 30px 0;
-    padding: 25px;
-    background: rgba(248, 249, 255, 0.6);
-    border-radius: 15px;
-    animation: slideUp 0.6s ease-out;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(106, 90, 249, 0.1);
-    width: 100%; /* Ocupa a largura total do container */
-    box-sizing: border-box;
-}
-
-section h2 {
-    color: var(--dark);
-    margin-bottom: 20px;
-    font-size: 1.8rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-section h2 i {
-    color: var(--primary);
-}
-
-.about-channel p {
-    text-align: left;
-    font-size: 1.1rem;
-    line-height: 1.8;
-}
-
-.links-section ul {
-    list-style: none;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    max-width: 500px;
-    margin: 0 auto;
-}
-
-.button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-    padding: 18px 25px;
-    border-radius: 12px;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 1.1rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-    position: relative;
-    overflow: hidden;
-    z-index: 1;
-    border: none;
-    cursor: pointer;
-    color: white;
-}
-
-.button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    opacity: 1;
-    z-index: -1;
-    transition: all 0.4s ease;
-}
-
-.button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-}
-
-.button:hover::before {
-    opacity: 0.9;
-}
-
-.button:active {
-    transform: translateY(1px);
-}
-
-.button i {
-    font-size: 1.4rem;
-}
-
-.button.youtube {
-    background: linear-gradient(135deg, #ff0000, #cc0000);
-}
-
-.button.whatsapp {
-    background: linear-gradient(135deg, #25d366, #128c7e);
-}
-
-.button.contact {
-    background: linear-gradient(135deg, #6c757d, #495057);
-}
-
-footer {
-    margin-top: 40px;
-    color: var(--text);
-    font-size: 0.9rem;
-    opacity: 0.8;
-    animation: fadeIn 1s ease-out;
-}
-
-/* Estilos do page1.html */
-.countdown-card {
-    background: rgba(248, 249, 255, 0.8);
-    border-radius: 15px;
-    padding: 30px;
-    margin-bottom: 30px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(106, 90, 249, 0.1);
-    position: relative;
-    overflow: hidden;
-    animation: fadeIn 0.8s ease-out;
-    width: 100%;
-    box-sizing: border-box;
 }
 
 .countdown-card h1 {
-    color: var(--dark);
     font-size: 1.8rem;
-    margin-bottom: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -254,24 +107,19 @@ footer {
     color: var(--primary);
 }
 
-.countdown-card p {
-    font-size: 1.1rem;
-    margin-bottom: 20px;
-}
-
+/* --- Contador e Barra de Progresso --- */
 #countdown {
     font-size: 2.5rem;
     font-weight: 700;
     color: var(--primary);
     margin: 0 5px;
-    min-width: 50px;
     display: inline-block;
 }
 
 .loading-bar {
     width: 100%;
     height: 12px;
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.05);
     border-radius: 10px;
     overflow: hidden;
     margin: 25px 0;
@@ -282,181 +130,151 @@ footer {
     height: 100%;
     background: linear-gradient(90deg, var(--primary), var(--accent));
     border-radius: 10px;
-    transition: width 0.1s linear;
+    transition: width 1s linear; /* Suaviza o movimento */
 }
 
+/* --- Área de Conteúdo --- */
 .content-area {
+    width: 100%;
     background: rgba(248, 249, 255, 0.6);
     border-radius: 15px;
-    padding: 30px;
-    animation: slideUp 0.6s ease-out;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.03);
+    padding: 25px;
+    margin-top: 20px;
     border: 1px solid rgba(106, 90, 249, 0.1);
     text-align: left;
-    width: 100%;
-    box-sizing: border-box;
 }
 
 .content-area h2 {
-    color: var(--dark);
-    margin-bottom: 20px;
-    font-size: 1.8rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
     text-align: center;
+    font-size: 1.5rem;
 }
 
-.content-area h2 i {
-    color: var(--primary);
+.scroll-hint {
+    font-size: 0.9rem;
+    color: #888;
+    margin-top: 15px;
+    font-style: italic;
+    animation: pulse 2s infinite;
 }
 
-.content-area p {
-    margin-bottom: 20px;
-    font-size: 1.1rem;
-    line-height: 1.8;
-}
-
-/* Botão "Continuar" - Inicialmente invisível e inativo para cliques */
+/* --- O Botão "Continuar" --- */
 .next-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
+    width: 100%; /* Botão largo no mobile */
+    max-width: 300px;
     padding: 16px 35px;
-    border-radius: 12px;
-    font-weight: 600;
+    border-radius: 50px;
+    font-weight: 700;
     font-size: 1.1rem;
-    transition: all 0.3s ease, opacity 0.5s ease; /* Adiciona transição para opacidade */
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    color: white;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     border: none;
     cursor: pointer;
-    margin-top: 20px;
-    opacity: 0; /* Começa invisível */
-    pointer-events: none; /* Não permite interação do mouse */
-    transform: translateY(20px); /* Para animação de entrada suave */
-    animation: none; /* Remove animação de entrada inicial via CSS, controlada por JS */
-}
-
-/* Estado visível do botão, ativado por JS adicionando uma classe ou alterando inline */
-.next-button.show {
+    margin-top: 25px;
+    color: white;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    box-shadow: 0 5px 15px rgba(106, 90, 249, 0.3);
+    transition: all 0.3s ease;
+    
+    /* Controle de Estado */
     opacity: 1;
-    pointer-events: auto;
     transform: translateY(0);
 }
 
-.next-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-}
-
-.next-button:active {
-    transform: translateY(1px);
-}
-
-.scroll-hint {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 1.1rem;
-    color: var(--primary);
-    font-weight: 600;
-    animation: pulse 2s infinite;
-    opacity: 0; /* Oculta inicialmente */
-    transition: opacity 0.5s ease;
-}
-
-
-/* Animações (compartilhadas) */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 0.8; }
-    50% { transform: scale(1.05); opacity: 1; }
-    100% { transform: scale(1); opacity: 0.8; }
-}
-
-/* Responsividade (compartilhada e ajustada) */
-@media (max-width: 768px) {
-    .container {
-        padding: 30px 20px;
-    }
-
-    header h1, .countdown-card h1, .content-area h2, section h2 {
-        font-size: 1.5rem; /* Ajuste para títulos em telas menores */
-    }
-
-    .countdown-card, .content-area, section {
-        padding: 20px;
-    }
-
-    .button, .next-button {
-        padding: 16px;
-        font-size: 1rem;
-    }
-}
-
-@media (max-width: 480px) {
-    body {
-        padding: 15px;
-    }
-
-    header h1 {
-        font-size: 1.8rem;
-    }
-
-    header p {
-        font-size: 1rem;
-    }
-
-    #countdown {
-        font-size: 2rem;
-    }
-
-    .content-area p {
-        font-size: 1rem;
-    }
-}
-/* Adicione isso ao seu style.css */
+/* Estado Desativado (Importante para a segurança) */
 .next-button:disabled {
-    background-color: #ccc;
-    transform: none;
+    background: #bdc3c7; /* Cinza */
+    color: #7f8c8d;
+    cursor: not-allowed;
     box-shadow: none;
+    transform: none;
+    animation: none;
 }
 
+.next-button:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(106, 90, 249, 0.5);
+}
+
+/* Animação de Pulso para chamar clique */
 @keyframes pulse-green {
-    0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(76, 224, 179, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(76, 224, 179, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(76, 224, 179, 0); }
 }
 
 .pulse-animation {
     animation: pulse-green 2s infinite;
 }
 
-/* Efeito de onda no rodapé (compartilhado) */
+/* --- Popup de Alerta (Overlay) --- */
+.custom-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    
+    /* Animação de entrada */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Classe ativada pelo Javascript (.active) */
+.custom-alert-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.custom-alert-box {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    transform: scale(0.8);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.custom-alert-overlay.active .custom-alert-box {
+    transform: scale(1);
+}
+
+.custom-alert-box h3 {
+    color: var(--error);
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.custom-alert-box .close-btn {
+    margin-top: 20px;
+    padding: 12px 30px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.custom-alert-box .close-btn:hover {
+    background: var(--dark);
+}
+
+/* --- Footer e Wave --- */
 .wave {
     position: absolute;
     bottom: 0;
@@ -465,87 +283,30 @@ footer {
     height: 100px;
     background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg"><path d="M0 0v46.29c47.79 22.2 103.59 32.17 158 28 70.36-5.37 136.33-33.31 206.8-37.5 73.84-4.36 147.54 16.88 218.2 35.26 69.27 18 138.3 24.88 209.4 13.08 36.15-6 69.85-17.84 104.45-29.34C989.49 25 1113-14.29 1200 52.47V0z" fill="%236a5af922"/></svg>');
     background-size: cover;
-    background-repeat: no-repeat;
     opacity: 0.3;
     z-index: -1;
 }
 
-/* --- Estilos para o Pop-up Personalizado (mantido) --- */
-.custom-alert-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); /* Fundo escuro semi-transparente */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    opacity: 0; /* Começa invisível */
-    visibility: hidden; /* Oculto para acessibilidade */
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+footer {
+    margin-top: 30px;
+    color: rgba(0,0,0,0.5);
+    font-size: 0.85rem;
 }
 
-.custom-alert-overlay.show {
-    opacity: 1;
-    visibility: visible;
+/* Animação Pulse Genérica */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.7; }
 }
 
-.custom-alert-box {
-    background-color: #ffffff;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-    text-align: center;
-    max-width: 450px;
-    width: 90%;
-    transform: scale(0.9); /* Efeito de entrada */
-    transition: transform 0.3s ease;
-    position: relative;
-}
-
-.custom-alert-overlay.show .custom-alert-box {
-    transform: scale(1);
-}
-
-.custom-alert-box h3 {
-    color: #343a40;
-    font-size: 1.8em;
-    margin-bottom: 15px;
-}
-
-.custom-alert-box p {
-    color: #6c757d;
-    font-size: 1.1em;
-    margin-bottom: 25px;
-    line-height: 1.6;
-}
-
-.custom-alert-box .close-btn {
-    background-color: var(--primary); /* Usando a variável primary */
-    color: white;
-    border: none;
-    padding: 12px 25px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1em;
-    font-weight: bold;
-    transition: background-color 0.2s ease;
-}
-
-.custom-alert-box .close-btn:hover {
-    background-color: #0056b3; /* Cor mais escura para hover, pode ser ajustado com variáveis */
-}
-
-/* Estilo para mensagens de erro */
-.custom-alert-box.error h3 {
-    color: #dc3545; /* Vermelho para erro */
-}
-
-.custom-alert-box.error .close-btn {
-    background-color: #dc3545;
-}
-.custom-alert-box.error .close-btn:hover {
-    background-color: #bd2130;
+/* Responsividade */
+@media (max-width: 480px) {
+    .container {
+        padding: 25px 20px;
+    }
+    h1 { font-size: 1.5rem; }
+    .button, .next-button {
+        width: 100%;
+    }
 }
