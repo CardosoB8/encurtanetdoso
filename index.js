@@ -9,35 +9,33 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// *** SEGURANÇA ***
+// Configurações de Segurança
 app.set('trust proxy', 1);
-app.use(helmet({
-    contentSecurityPolicy: false, // Desativado temporariamente para permitir scripts de ads externos
-}));
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors());
 
-// Limita requisições (Anti-DDoS)
+// Rate Limit
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200, 
+    max: 300, 
     message: { error: 'Muitas requisições. Acalme-se.' }
 });
 app.use(limiter);
 
-const SESSION_SECRET_KEY = process.env.SESSION_SECRET_KEY || 'CHAVE_SUPER_SECRETA_DEV';
-const TOTAL_STEPS = 6; // Agora são 6 passos
-const STEP_TIME_MS = 15000; // 15 Segundos (deve bater com o contador do frontend)
-const MIN_TIME_TOLERANCE = 2000; // Tolerância de 2s (para conexões lentas)
+const SESSION_SECRET_KEY = process.env.SESSION_SECRET_KEY || 'f1b39bd1a7d06564e0e9b5e3c17a50ac7a276c8836367e4a92d643de598a93291651139273ec5aed04269fca3383f03970814973f9c3cc7e6712e5f17543e06c';
+const DEFAULT_STEPS = 3; // Padrão se não estiver no link.js
+const STEP_TIME_MS = 15000; // 15 Segundos
+const MIN_TIME_TOLERANCE = 2000; 
 
-// Carrega Links
 const linksData = { links: require('./data/links.js') };
 
-// *** FUNÇÕES DE CRIPTOGRAFIA ***
+// --- Criptografia ---
 function signToken(payload, ip) {
     const payloadSec = {
         ...payload,
         ip: ip,
         iat: Date.now(),
-        nonce: crypto.randomBytes(8).toString('hex') // Nonce maior para entropia
+        nonce: crypto.randomBytes(8).toString('hex')
     };
     const data = JSON.stringify(payloadSec);
     const hmac = crypto.createHmac('sha256', SESSION_SECRET_KEY);
@@ -56,14 +54,11 @@ function verifyToken(token, reqIp) {
         hmac.update(data);
         const expectedSignature = hmac.digest('hex');
 
-        // Comparação segura contra Timing Attacks
         const a = Buffer.from(signature);
         const b = Buffer.from(expectedSignature);
         if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
 
         const payload = JSON.parse(data);
-
-        // Validação de IP (Anti-Link Sharing)
         if (payload.ip !== reqIp) return null;
 
         return payload;
@@ -74,30 +69,23 @@ function verifyToken(token, reqIp) {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rota Inicial (Home)
+// --- Rota Home (Limpa) ---
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// *** ROTA GENÉRICA PARA PÁGINAS 1 a 6 ***
-// Serve o MESMO arquivo HTML, o JS resolve o resto.
+// --- Rota das Páginas de Etapa ---
 app.get('/page:step', (req, res) => {
     const step = parseInt(req.params.step);
     const token = req.query.token;
 
-    // Validação básica antes de entregar o HTML
-    if (isNaN(step) || step < 1 || step > TOTAL_STEPS) {
-        return res.redirect('/');
-    }
+    if (isNaN(step) || !token) return res.redirect('/');
     
-    // Se não tiver token, manda pra home
-    if (!token) return res.redirect('/');
-
-    // Serve o arquivo de template dos passos
+    // Serve o template único
     res.sendFile(path.join(__dirname, 'public', 'step.html'));
 });
 
-// *** API DE VALIDAÇÃO (A PARTE INTELIGENTE) ***
+// --- API: Avançar Etapa ---
 app.get('/api/next-step', (req, res) => {
     const sessionToken = req.query.token;
     const clientStep = parseInt(req.query.currentStep);
@@ -107,35 +95,32 @@ app.get('/api/next-step', (req, res) => {
 
     const payload = verifyToken(sessionToken, clientIp);
 
-    // 1. Checagem de Integridade
-    if (!payload) {
-        return res.status(403).json({ error: 'Sessão inválida ou IP alterado.', redirect: '/' });
-    }
+    // 1. Validação de Token e IP
+    if (!payload) return res.status(403).json({ error: 'Sessão inválida.', redirect: '/' });
 
-    // 2. Checagem de Tempo (Anti-Speedrun)
-    // O usuário não pode requisitar o próximo passo antes de (15s - tolerância)
+    // 2. Busca o Link para saber quantos passos ele tem
+    const link = linksData.links.find(l => l.alias === payload.alias);
+    if (!link) return res.status(404).json({ error: 'Link perdido.', redirect: '/' });
+
+    const TOTAL_STEPS_FOR_LINK = link.steps || DEFAULT_STEPS;
+
+    // 3. Validação de Tempo
     const timeElapsed = Date.now() - payload.iat;
-    const minRequiredTime = STEP_TIME_MS - MIN_TIME_TOLERANCE;
-
-    if (timeElapsed < minRequiredTime) {
-        console.warn(`[CHEAT] Tentativa rápida: ${timeElapsed}ms. IP: ${clientIp}`);
-        return res.status(429).json({ error: 'Você está muito rápido. Aguarde o contador.', resetTimer: true });
+    if (timeElapsed < (STEP_TIME_MS - MIN_TIME_TOLERANCE)) {
+        return res.status(429).json({ error: 'Muito rápido! Aguarde o contador.', resetTimer: true });
     }
 
-    // 3. Checagem de Sequência
+    // 4. Validação de Sequência
     if (payload.step !== clientStep) {
         return res.status(400).json({ error: 'Passo incorreto.', redirect: '/' });
     }
 
-    const link = linksData.links.find(l => l.alias === payload.alias);
-    if (!link) return res.status(404).json({ error: 'Link não encontrado.', redirect: '/' });
-
-    // LÓGICA FINAL
-    if (clientStep >= TOTAL_STEPS) {
-        // Chegou no final (Passo 6)
+    // --- Lógica de Decisão ---
+    if (clientStep >= TOTAL_STEPS_FOR_LINK) {
+        // Chegou ao fim!
         return res.json({ redirect: link.original_url });
     } else {
-        // Avança para o próximo
+        // Vai para o próximo
         const nextStep = clientStep + 1;
         const newToken = signToken({ 
             alias: payload.alias, 
@@ -143,23 +128,27 @@ app.get('/api/next-step', (req, res) => {
             exp: Date.now() + 3600000 
         }, clientIp);
 
-        return res.json({ redirect: `/page${nextStep}?token=${newToken}` });
+        // Passamos o 'total' na URL para o frontend saber mostrar "2/5"
+        return res.json({ redirect: `/page${nextStep}?token=${newToken}&total=${TOTAL_STEPS_FOR_LINK}` });
     }
 });
 
-// Rota de Entrada (ex: /youtube-canal)
+// --- Rota de Entrada (Start) ---
 app.get('/:alias', (req, res) => {
     const alias = req.params.alias;
     const link = linksData.links.find(l => l.alias === alias);
     
     if (link) {
+        const totalSteps = link.steps || DEFAULT_STEPS;
         const token = signToken({ alias: alias, step: 1, exp: Date.now() + 3600000 }, req.ip);
-        res.redirect(`/page1?token=${token}`);
+        
+        // Redireciona para a página 1, avisando que o total é X
+        res.redirect(`/page1?token=${token}&total=${totalSteps}`);
     } else {
         res.redirect('/');
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor Blindado rodando na porta ${PORT}`);
+    console.log(`Servidor rodando na porta ${PORT}`);
 });
