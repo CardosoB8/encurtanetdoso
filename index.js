@@ -44,16 +44,15 @@ if (!process.env.SESSION_SECRET_KEY) {
     console.warn('AVISO: Usando SESSION_SECRET_KEY gerada automaticamente. Configure uma variável de ambiente para produção.');
 }
 
-const DEFAULT_STEPS = 3;
 const STEP_TIME_MS = 15000;
 const MIN_TIME_TOLERANCE = 2000;
-const TOKEN_EXPIRATION_MS = 10 * 60 * 1000; // 10 minutos
+const TOKEN_EXPIRATION_MS = 10 * 60 * 1000;
 
 const linksData = { links: require('./data/links.js') };
 
-// Cache para tokens usados (em produção use Redis)
-const usedTokens = new Set();
-const TOKEN_CLEANUP_INTERVAL = 5 * 60 * 1000; // Limpeza a cada 5 minutos
+// Cache para tokens usados
+const usedTokens = new Map();
+const TOKEN_CLEANUP_INTERVAL = 5 * 60 * 1000;
 
 // Limpeza periódica de tokens usados
 setInterval(() => {
@@ -72,11 +71,11 @@ function signToken(payload, ip) {
         ip: ip,
         iat: Date.now(),
         exp: Date.now() + TOKEN_EXPIRATION_MS,
-        nonce: crypto.randomBytes(16).toString('hex') // Nonce mais longo
+        nonce: crypto.randomBytes(16).toString('hex')
     };
     
     const data = JSON.stringify(payloadSec);
-    const hmac = crypto.createHmac('sha384', SESSION_SECRET_KEY); // Algoritmo mais forte
+    const hmac = crypto.createHmac('sha384', SESSION_SECRET_KEY);
     hmac.update(data);
     const signature = hmac.digest('hex');
     
@@ -85,7 +84,6 @@ function signToken(payload, ip) {
 
 function verifyToken(token, reqIp) {
     try {
-        // Verificar se token já foi usado
         if (usedTokens.has(token)) {
             return null;
         }
@@ -96,17 +94,14 @@ function verifyToken(token, reqIp) {
         const data = Buffer.from(encodedData, 'base64url').toString('utf8');
         const payload = JSON.parse(data);
 
-        // Verificar expiração
         if (Date.now() > payload.exp) {
             return null;
         }
 
-        // Verificar IP
         if (payload.ip !== reqIp) {
             return null;
         }
 
-        // Verificar assinatura
         const hmac = crypto.createHmac('sha384', SESSION_SECRET_KEY);
         hmac.update(data);
         const expectedSignature = hmac.digest('hex');
@@ -128,7 +123,7 @@ function markTokenUsed(token) {
     const [encodedData] = token.split('.');
     const data = Buffer.from(encodedData, 'base64url').toString('utf8');
     const payload = JSON.parse(data);
-    usedTokens.add(token, payload.exp);
+    usedTokens.set(token, payload.exp);
 }
 
 // Middleware de validação
@@ -143,7 +138,6 @@ app.get('/', (req, res) => {
 app.get('/page:step', (req, res) => {
     const step = parseInt(req.params.step);
     const token = req.query.token;
-    const clientTotal = parseInt(req.query.total);
 
     if (isNaN(step) || !token) {
         return res.redirect('/');
@@ -160,13 +154,8 @@ app.get('/page:step', (req, res) => {
         return res.redirect('/');
     }
 
-    const totalSteps = link.steps || DEFAULT_STEPS;
+    const totalSteps = link.steps || 3; // SEMPRE usar o steps do link
     
-    // Prevenir manipulação do total
-    if (clientTotal && clientTotal !== totalSteps) {
-        return res.redirect('/');
-    }
-
     // Validar sequência de passos
     if (step !== payload.step) {
         return res.redirect('/');
@@ -195,17 +184,18 @@ app.get('/api/next-step', (req, res) => {
         return res.status(404).json({ error: 'Link não encontrado', redirect: '/' });
     }
 
-    const TOTAL_STEPS_FOR_LINK = link.steps || DEFAULT_STEPS;
+    const TOTAL_STEPS_FOR_LINK = link.steps || 3; // CRÍTICO: Sempre pegar do link
 
-    // Validação rigorosa de tempo
+    // Validação rigorosa de tempo - CORREÇÃO DO TEMPO
     const timeElapsed = Date.now() - payload.iat;
-    const expectedTime = (payload.step - 1) * STEP_TIME_MS;
+    const expectedTime = (clientStep - 1) * STEP_TIME_MS; // Tempo esperado baseado na etapa atual
     
     if (timeElapsed < (expectedTime + STEP_TIME_MS - MIN_TIME_TOLERANCE)) {
+        const remainingTime = Math.max(0, (expectedTime + STEP_TIME_MS) - timeElapsed);
         return res.status(429).json({ 
-            error: 'Aguarde o tempo necessário', 
+            error: `Aguarde mais ${Math.ceil(remainingTime/1000)} segundos`, 
             resetTimer: true,
-            remainingTime: Math.max(0, (expectedTime + STEP_TIME_MS) - timeElapsed)
+            remainingTime: remainingTime
         });
     }
 
@@ -230,9 +220,33 @@ app.get('/api/next-step', (req, res) => {
         
         return res.json({ 
             redirect: `/page${nextStep}?token=${newToken}`,
-            total: TOTAL_STEPS_FOR_LINK // Enviar via JSON, não URL
+            total: TOTAL_STEPS_FOR_LINK // Enviar o total correto
         });
     }
+});
+
+// --- API: Obter Total de Etapas ---
+app.get('/api/get-total', (req, res) => {
+    const token = req.query.token;
+    const clientIp = req.ip;
+
+    if (!token) {
+        return res.status(400).json({ error: 'Token ausente' });
+    }
+
+    const payload = verifyToken(token, clientIp);
+    if (!payload) {
+        return res.status(403).json({ error: 'Token inválido' });
+    }
+
+    const link = linksData.links.find(l => l.alias === payload.alias);
+    if (!link) {
+        return res.status(404).json({ error: 'Link não encontrado' });
+    }
+
+    const totalSteps = link.steps || 3;
+    
+    res.json({ total: totalSteps });
 });
 
 // --- Rota de Entrada (Start) ---
@@ -241,7 +255,7 @@ app.get('/:alias', (req, res) => {
     const link = linksData.links.find(l => l.alias === alias);
     
     if (link) {
-        const totalSteps = link.steps || DEFAULT_STEPS;
+        const totalSteps = link.steps || 3; // SEMPRE usar o steps do link
         const token = signToken({ 
             alias: alias, 
             step: 1 
