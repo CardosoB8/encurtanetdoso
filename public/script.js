@@ -1,38 +1,49 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Pega parâmetros da URL
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
-    // Pega o 'total' da URL. Se não tiver, assume 3.
-    const totalStepsParam = urlParams.get('total');
-    const TOTAL_STEPS = totalStepsParam ? parseInt(totalStepsParam) : 3;
-
-    // Detecta passo atual pelo nome do arquivo/rota (page1, page2...)
     const pathStepMatch = window.location.pathname.match(/page(\d+)/);
     const currentStep = pathStepMatch ? parseInt(pathStepMatch[1]) : 1;
 
-    // Configuração de Tempo
-    const COUNTDOWN_TIME = 15; 
+    const COUNTDOWN_TIME = 15;
     
-    // Elementos
     const countdownEl = document.getElementById('countdown');
     const progressBar = document.getElementById('progressBar');
     const nextBtn = document.getElementById('nextStepBtn');
     const titleEl = document.querySelector('.countdown-card h1');
 
-    // ATUALIZA O TEXTO NA TELA (Ex: 1/5)
-    if (titleEl) {
-        titleEl.innerHTML = `<i class="fas fa-hourglass-half"></i> Processando link... ${currentStep}/${TOTAL_STEPS}`;
-    }
-
-    // Se não tem token, não faz nada (segurança)
-    if (!token) {
-        return; 
-    }
-
+    let TOTAL_STEPS = 3; // Valor inicial, será atualizado
     let timeLeft = COUNTDOWN_TIME;
     let timerInterval;
     let isTabActive = true;
+
+    if (!token) {
+        showAlert("Erro", "Sessão inválida.");
+        return;
+    }
+
+    // Buscar o total REAL de etapas do servidor
+    async function fetchTotalSteps() {
+        try {
+            const response = await fetch(`/api/get-total?token=${token}`);
+            const data = await response.json();
+            
+            if (response.ok) {
+                TOTAL_STEPS = data.total;
+                updateTitle();
+            } else {
+                console.error('Erro ao buscar total:', data.error);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar total:', error);
+        }
+    }
+
+    function updateTitle() {
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="fas fa-hourglass-half"></i> Processando link... ${currentStep}/${TOTAL_STEPS}`;
+        }
+    }
 
     // Pausa se sair da aba
     document.addEventListener("visibilitychange", () => {
@@ -42,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startTimer() {
         nextBtn.disabled = true;
+        updateTitle(); // Atualiza título com valor inicial
         
         timerInterval = setInterval(() => {
             if (isTabActive && timeLeft > 0) {
@@ -59,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function enableButton() {
         nextBtn.disabled = false;
-        // Mostra qual é o próximo passo ou se é o final
         if (currentStep >= TOTAL_STEPS) {
              nextBtn.innerHTML = `<i class="fas fa-external-link-alt"></i> Acessar Link Final`;
         } else {
@@ -82,7 +93,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 if (data.resetTimer) {
                     showAlert("Ops!", data.error);
-                    timeLeft = 5; 
+                    // Reinicia o timer com o tempo restante calculado pelo servidor
+                    if (data.remainingTime) {
+                        timeLeft = Math.ceil(data.remainingTime / 1000);
+                    } else {
+                        timeLeft = 5;
+                    }
                     startTimer();
                 } else {
                     showAlert("Erro", data.error || "Erro desconhecido.");
@@ -111,5 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Inicialização
+    fetchTotalSteps(); // Busca o total real do servidor
     startTimer();
 });
