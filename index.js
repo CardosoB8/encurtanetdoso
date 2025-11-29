@@ -11,55 +11,112 @@ const PORT = process.env.PORT || 3000;
 
 // Configurações de Segurança
 app.set('trust proxy', 1);
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"]
+        }
+    },
+    hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+    }
+}));
+
 app.use(cors());
 
-// Rate Limit
+// Rate Limit mais agressivo
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 300, 
-    message: { error: 'Muitas requisições. Acalme-se.' }
+    max: 100,
+    message: { error: 'Muitas requisições. Tente novamente mais tarde.' },
+    standardHeaders: true,
+    legacyHeaders: false
 });
 app.use(limiter);
 
-const SESSION_SECRET_KEY = process.env.SESSION_SECRET_KEY || 'f1b39bd1a7d06564e0e9b5e3c17a50ac7a276c8836367e4a92d643de598a93291651139273ec5aed04269fca3383f03970814973f9c3cc7e6712e5f17543e06c';
-const DEFAULT_STEPS = 3; // Padrão se não estiver no link.js
-const STEP_TIME_MS = 15000; // 15 Segundos
-const MIN_TIME_TOLERANCE = 2000; 
+const SESSION_SECRET_KEY = process.env.SESSION_SECRET_KEY || crypto.randomBytes(64).toString('hex');
+if (!process.env.SESSION_SECRET_KEY) {
+    console.warn('AVISO: Usando SESSION_SECRET_KEY gerada automaticamente. Configure uma variável de ambiente para produção.');
+}
+
+const DEFAULT_STEPS = 3;
+const STEP_TIME_MS = 15000;
+const MIN_TIME_TOLERANCE = 2000;
+const TOKEN_EXPIRATION_MS = 10 * 60 * 1000; // 10 minutos
 
 const linksData = { links: require('./data/links.js') };
 
-// --- Criptografia ---
+// Cache para tokens usados (em produção use Redis)
+const usedTokens = new Set();
+const TOKEN_CLEANUP_INTERVAL = 5 * 60 * 1000; // Limpeza a cada 5 minutos
+
+// Limpeza periódica de tokens usados
+setInterval(() => {
+    const now = Date.now();
+    for (const [token, expiry] of usedTokens.entries()) {
+        if (now > expiry) {
+            usedTokens.delete(token);
+        }
+    }
+}, TOKEN_CLEANUP_INTERVAL);
+
+// --- Criptografia Melhorada ---
 function signToken(payload, ip) {
     const payloadSec = {
         ...payload,
         ip: ip,
         iat: Date.now(),
-        nonce: crypto.randomBytes(8).toString('hex')
+        exp: Date.now() + TOKEN_EXPIRATION_MS,
+        nonce: crypto.randomBytes(16).toString('hex') // Nonce mais longo
     };
+    
     const data = JSON.stringify(payloadSec);
-    const hmac = crypto.createHmac('sha256', SESSION_SECRET_KEY);
+    const hmac = crypto.createHmac('sha384', SESSION_SECRET_KEY); // Algoritmo mais forte
     hmac.update(data);
     const signature = hmac.digest('hex');
+    
     return `${Buffer.from(data).toString('base64url')}.${signature}`;
 }
 
 function verifyToken(token, reqIp) {
     try {
+        // Verificar se token já foi usado
+        if (usedTokens.has(token)) {
+            return null;
+        }
+
         const [encodedData, signature] = token.split('.');
         if (!encodedData || !signature) return null;
 
         const data = Buffer.from(encodedData, 'base64url').toString('utf8');
-        const hmac = crypto.createHmac('sha256', SESSION_SECRET_KEY);
+        const payload = JSON.parse(data);
+
+        // Verificar expiração
+        if (Date.now() > payload.exp) {
+            return null;
+        }
+
+        // Verificar IP
+        if (payload.ip !== reqIp) {
+            return null;
+        }
+
+        // Verificar assinatura
+        const hmac = crypto.createHmac('sha384', SESSION_SECRET_KEY);
         hmac.update(data);
         const expectedSignature = hmac.digest('hex');
 
-        const a = Buffer.from(signature);
-        const b = Buffer.from(expectedSignature);
-        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-
-        const payload = JSON.parse(data);
-        if (payload.ip !== reqIp) return null;
+        if (!crypto.timingSafeEqual(
+            Buffer.from(signature), 
+            Buffer.from(expectedSignature)
+        )) {
+            return null;
+        }
 
         return payload;
     } catch (e) {
@@ -67,9 +124,17 @@ function verifyToken(token, reqIp) {
     }
 }
 
+function markTokenUsed(token) {
+    const [encodedData] = token.split('.');
+    const data = Buffer.from(encodedData, 'base64url').toString('utf8');
+    const payload = JSON.parse(data);
+    usedTokens.add(token, payload.exp);
+}
+
+// Middleware de validação
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Rota Home (Limpa) ---
+// --- Rota Home ---
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -78,10 +143,35 @@ app.get('/', (req, res) => {
 app.get('/page:step', (req, res) => {
     const step = parseInt(req.params.step);
     const token = req.query.token;
+    const clientTotal = parseInt(req.query.total);
 
-    if (isNaN(step) || !token) return res.redirect('/');
+    if (isNaN(step) || !token) {
+        return res.redirect('/');
+    }
+
+    const payload = verifyToken(token, req.ip);
+    if (!payload) {
+        return res.redirect('/');
+    }
+
+    // Validar consistência do passo
+    const link = linksData.links.find(l => l.alias === payload.alias);
+    if (!link) {
+        return res.redirect('/');
+    }
+
+    const totalSteps = link.steps || DEFAULT_STEPS;
     
-    // Serve o template único
+    // Prevenir manipulação do total
+    if (clientTotal && clientTotal !== totalSteps) {
+        return res.redirect('/');
+    }
+
+    // Validar sequência de passos
+    if (step !== payload.step) {
+        return res.redirect('/');
+    }
+
     res.sendFile(path.join(__dirname, 'public', 'step.html'));
 });
 
@@ -91,45 +181,57 @@ app.get('/api/next-step', (req, res) => {
     const clientStep = parseInt(req.query.currentStep);
     const clientIp = req.ip;
 
-    if (!sessionToken) return res.status(400).json({ error: 'Token ausente' });
+    if (!sessionToken || isNaN(clientStep)) {
+        return res.status(400).json({ error: 'Dados inválidos', redirect: '/' });
+    }
 
     const payload = verifyToken(sessionToken, clientIp);
+    if (!payload) {
+        return res.status(403).json({ error: 'Sessão inválida ou expirada', redirect: '/' });
+    }
 
-    // 1. Validação de Token e IP
-    if (!payload) return res.status(403).json({ error: 'Sessão inválida.', redirect: '/' });
-
-    // 2. Busca o Link para saber quantos passos ele tem
     const link = linksData.links.find(l => l.alias === payload.alias);
-    if (!link) return res.status(404).json({ error: 'Link perdido.', redirect: '/' });
+    if (!link) {
+        return res.status(404).json({ error: 'Link não encontrado', redirect: '/' });
+    }
 
     const TOTAL_STEPS_FOR_LINK = link.steps || DEFAULT_STEPS;
 
-    // 3. Validação de Tempo
+    // Validação rigorosa de tempo
     const timeElapsed = Date.now() - payload.iat;
-    if (timeElapsed < (STEP_TIME_MS - MIN_TIME_TOLERANCE)) {
-        return res.status(429).json({ error: 'Muito rápido! Aguarde o contador.', resetTimer: true });
+    const expectedTime = (payload.step - 1) * STEP_TIME_MS;
+    
+    if (timeElapsed < (expectedTime + STEP_TIME_MS - MIN_TIME_TOLERANCE)) {
+        return res.status(429).json({ 
+            error: 'Aguarde o tempo necessário', 
+            resetTimer: true,
+            remainingTime: Math.max(0, (expectedTime + STEP_TIME_MS) - timeElapsed)
+        });
     }
 
-    // 4. Validação de Sequência
+    // Validar sequência
     if (payload.step !== clientStep) {
-        return res.status(400).json({ error: 'Passo incorreto.', redirect: '/' });
+        markTokenUsed(sessionToken);
+        return res.status(400).json({ error: 'Sequência inválida', redirect: '/' });
     }
 
-    // --- Lógica de Decisão ---
+    // Lógica de decisão
     if (clientStep >= TOTAL_STEPS_FOR_LINK) {
-        // Chegou ao fim!
+        markTokenUsed(sessionToken);
         return res.json({ redirect: link.original_url });
     } else {
-        // Vai para o próximo
         const nextStep = clientStep + 1;
         const newToken = signToken({ 
             alias: payload.alias, 
-            step: nextStep,
-            exp: Date.now() + 3600000 
+            step: nextStep
         }, clientIp);
 
-        // Passamos o 'total' na URL para o frontend saber mostrar "2/5"
-        return res.json({ redirect: `/page${nextStep}?token=${newToken}&total=${TOTAL_STEPS_FOR_LINK}` });
+        markTokenUsed(sessionToken);
+        
+        return res.json({ 
+            redirect: `/page${nextStep}?token=${newToken}`,
+            total: TOTAL_STEPS_FOR_LINK // Enviar via JSON, não URL
+        });
     }
 });
 
@@ -140,15 +242,23 @@ app.get('/:alias', (req, res) => {
     
     if (link) {
         const totalSteps = link.steps || DEFAULT_STEPS;
-        const token = signToken({ alias: alias, step: 1, exp: Date.now() + 3600000 }, req.ip);
+        const token = signToken({ 
+            alias: alias, 
+            step: 1 
+        }, req.ip);
         
-        // Redireciona para a página 1, avisando que o total é X
-        res.redirect(`/page1?token=${token}&total=${totalSteps}`);
+        res.redirect(`/page1?token=${token}`);
     } else {
         res.redirect('/');
     }
 });
 
+// Middleware de erro
+app.use((err, req, res, next) => {
+    console.error('Erro:', err);
+    res.status(500).redirect('/');
+});
+
 app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`Servidor seguro rodando na porta ${PORT}`);
 });
