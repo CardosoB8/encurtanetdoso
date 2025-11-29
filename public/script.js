@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pathStepMatch = window.location.pathname.match(/page(\d+)/);
     const currentStep = pathStepMatch ? parseInt(pathStepMatch[1]) : 1;
 
-    const COUNTDOWN_TIME = 15;
+    const COUNTDOWN_TIME = 15; // 15 segundos fixos por etapa
     
     const countdownEl = document.getElementById('countdown');
     const progressBar = document.getElementById('progressBar');
@@ -53,7 +53,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startTimer() {
         nextBtn.disabled = true;
-        updateTitle(); // Atualiza título com valor inicial
+        updateTitle();
+        
+        // Reset do timer para 15 segundos
+        timeLeft = COUNTDOWN_TIME;
+        if(countdownEl) countdownEl.textContent = timeLeft;
+        if(progressBar) progressBar.style.width = '0%';
         
         timerInterval = setInterval(() => {
             if (isTabActive && timeLeft > 0) {
@@ -97,9 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data.remainingTime) {
                         timeLeft = Math.ceil(data.remainingTime / 1000);
                     } else {
-                        timeLeft = 5;
+                        timeLeft = COUNTDOWN_TIME; // Sempre 15 segundos
                     }
                     startTimer();
+                    nextBtn.innerHTML = `<i class="fas fa-arrow-right"></i> Ir para Etapa ${currentStep + 1}`;
                 } else {
                     showAlert("Erro", data.error || "Erro desconhecido.");
                     if (data.redirect) setTimeout(() => window.location.href = data.redirect, 2000);
@@ -108,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(error);
             showAlert("Erro", "Falha na conexão.");
+            nextBtn.innerHTML = `<i class="fas fa-arrow-right"></i> Ir para Etapa ${currentStep + 1}`;
         }
     });
 
@@ -128,6 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Inicialização
-    fetchTotalSteps(); // Busca o total real do servidor
+    fetchTotalSteps();
     startTimer();
 });
