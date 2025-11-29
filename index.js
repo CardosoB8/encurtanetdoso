@@ -44,7 +44,7 @@ if (!process.env.SESSION_SECRET_KEY) {
     console.warn('AVISO: Usando SESSION_SECRET_KEY gerada automaticamente. Configure uma variável de ambiente para produção.');
 }
 
-const STEP_TIME_MS = 15000;
+const STEP_TIME_MS = 15000; // 15 segundos por etapa
 const MIN_TIME_TOLERANCE = 2000;
 const TOKEN_EXPIRATION_MS = 10 * 60 * 1000;
 
@@ -69,7 +69,7 @@ function signToken(payload, ip) {
     const payloadSec = {
         ...payload,
         ip: ip,
-        iat: Date.now(),
+        iat: Date.now(), // Momento de criação deste token específico
         exp: Date.now() + TOKEN_EXPIRATION_MS,
         nonce: crypto.randomBytes(16).toString('hex')
     };
@@ -154,7 +154,7 @@ app.get('/page:step', (req, res) => {
         return res.redirect('/');
     }
 
-    const totalSteps = link.steps || 3; // SEMPRE usar o steps do link
+    const totalSteps = link.steps || 3;
     
     // Validar sequência de passos
     if (step !== payload.step) {
@@ -184,14 +184,13 @@ app.get('/api/next-step', (req, res) => {
         return res.status(404).json({ error: 'Link não encontrado', redirect: '/' });
     }
 
-    const TOTAL_STEPS_FOR_LINK = link.steps || 3; // CRÍTICO: Sempre pegar do link
+    const TOTAL_STEPS_FOR_LINK = link.steps || 3;
 
-    // Validação rigorosa de tempo - CORREÇÃO DO TEMPO
+    // CORREÇÃO: Cada etapa tem exatamente 15 segundos, sem acumulação
     const timeElapsed = Date.now() - payload.iat;
-    const expectedTime = (clientStep - 1) * STEP_TIME_MS; // Tempo esperado baseado na etapa atual
     
-    if (timeElapsed < (expectedTime + STEP_TIME_MS - MIN_TIME_TOLERANCE)) {
-        const remainingTime = Math.max(0, (expectedTime + STEP_TIME_MS) - timeElapsed);
+    if (timeElapsed < (STEP_TIME_MS - MIN_TIME_TOLERANCE)) {
+        const remainingTime = Math.max(0, STEP_TIME_MS - timeElapsed);
         return res.status(429).json({ 
             error: `Aguarde mais ${Math.ceil(remainingTime/1000)} segundos`, 
             resetTimer: true,
@@ -211,6 +210,7 @@ app.get('/api/next-step', (req, res) => {
         return res.json({ redirect: link.original_url });
     } else {
         const nextStep = clientStep + 1;
+        // CORREÇÃO: Criar novo token com timestamp atual (sem acumulação)
         const newToken = signToken({ 
             alias: payload.alias, 
             step: nextStep
@@ -220,7 +220,7 @@ app.get('/api/next-step', (req, res) => {
         
         return res.json({ 
             redirect: `/page${nextStep}?token=${newToken}`,
-            total: TOTAL_STEPS_FOR_LINK // Enviar o total correto
+            total: TOTAL_STEPS_FOR_LINK
         });
     }
 });
@@ -255,7 +255,7 @@ app.get('/:alias', (req, res) => {
     const link = linksData.links.find(l => l.alias === alias);
     
     if (link) {
-        const totalSteps = link.steps || 3; // SEMPRE usar o steps do link
+        const totalSteps = link.steps || 3;
         const token = signToken({ 
             alias: alias, 
             step: 1 
